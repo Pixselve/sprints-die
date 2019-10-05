@@ -49,16 +49,21 @@ class Coords:
 
 class Pictures:
     pt1 = Coords(9999, 9999)
-    pt2 = Coords(9999, -9999)
-    pt3 = Coords(-9999, 9999)
+    pt2 = Coords(-9999, 9999)
+    pt3 = Coords(9999, 9999)
     pt4 = Coords(-9999, -9999)
 
     def savePics(self):
-        cropedImage = src[self.minCoords.y - 25:self.maxCoords.y + 25, self.minCoords.x - 25:self.maxCoords.x + 25]
-        # pts1 = np.float32([[470, 206], [1479, 198], [32, 1122], [1980, 1125]])
-        # pts2 = np.float32([[0, 0], [500, 0], [0, 600], [500, 600]])
 
-        cv.imwrite("./images/image.png", cropedImage)
+        pts1 = np.float32(
+            [[self.pt1.x, self.pt1.y], [self.pt2.x, self.pt2.y], [self.pt3.x, self.pt3.y], [self.pt4.x, self.pt4.y]])
+        pts2 = np.float32([[0, 0], [500, 0], [0, 150], [500, 150]])
+        matrix = cv.getPerspectiveTransform(pts1, pts2)
+        result = cv.warpPerspective(src, matrix, (500, 150))
+        resultBluredAndGray = cv.blur(cv.cvtColor(result, cv.COLOR_BGR2GRAY), (3, 3))
+        cv.imwrite("output/image.png", result)
+        cv.imwrite("output/image-gray-blur.png", resultBluredAndGray)
+        print("🚀 Images saved in 'output/'")
 
 
 picture = Pictures()
@@ -80,64 +85,33 @@ def thresh_callback(val):
         boundRect[i] = cv.boundingRect(contours_poly[i])
         centers[i], radius[i] = cv.minEnclosingCircle(contours_poly[i])
 
-    drawing = np.zeros((canny_output.shape[0], canny_output.shape[1], 3), dtype=np.uint8)
     newImage = copy.copy(src)
 
-    filteredBoundingRect = []
 
-    contours123 = imutils.grab_contours(contours)
-    c = max(contours123, key=cv.contourArea)
+    for i in range(len(contours)):
+        x, y, w, h = boundRect[i]
+        if picture.pt1.x > x:
+            picture.pt1.x = x
 
-    extLeft = tuple(c[c[:, :, 0].argmin()][0])
-    extRight = tuple(c[c[:, :, 0].argmax()][0])
-    extTop = tuple(c[c[:, :, 1].argmin()][0])
-    extBot = tuple(c[c[:, :, 1].argmax()][0])
+        if picture.pt1.y > y:
+            picture.pt1.y = y - h
 
-    cv.circle(newImage, extLeft, 5, (0, 0, 255), -1)
-    cv.circle(newImage, extRight, 5, (0, 255, 255), -1)
-    cv.circle(newImage, extTop, 5, (255, 0, 255), -1)
-    cv.circle(newImage, extBot, 5, (255, 0, 0), -1)
+        if picture.pt2.x < x and picture.pt2.y > y:
+            picture.pt2.x = x + round(w * 1.5)
+            picture.pt2.y = y
 
+        if picture.pt3.x > x and picture.pt3.y > y:
+            picture.pt3.x = x - 20
+            picture.pt3.y = y + 20
 
+        if picture.pt4.x < x and picture.pt4.y < y:
+            picture.pt4.x = x + 50
+            picture.pt4.y = y + 20
 
-    # for i in range(len(contours)):
-    #     x, y, w, h = boundRect[i]
-    #
-    #     if picture.pt1.x > x and picture.pt1.y > y:
-    #         picture.pt1.x = x
-    #         picture.pt1.y = y
-    #         print("PT1")
-    #     if picture.pt3.x > x and picture.pt3.y < y:
-    #         picture.pt3.x = x
-    #         picture.pt3.y = y
-    #         print("PT3")
-    #     if picture.pt2.x < x and picture.pt2.y > y:
-    #         picture.pt2.x = x
-    #         picture.pt2.y = y
-    #         print("PT2")
-    #     if picture.pt4.x < x and picture.pt4.y < y:
-    #         picture.pt4.x = x
-    #         picture.pt4.y = y
-    #         print("PT4")
-
-    # cv.circle(newImage, (picture.pt1.x, picture.pt1.y), 5, (0, 0, 255), -1)
-    # cv.circle(newImage, (picture.pt2.x, picture.pt2.y), 5, (0, 255, 255), -1)
-    # cv.circle(newImage, (picture.pt3.x, picture.pt3.y), 5, (255, 0, 255), -1)
-    # cv.circle(newImage, (picture.pt4.x, picture.pt4.y), 5, (255, 0, 0), -1)
-    # if picture.pt1.x > x:
-    #     picture.pt1.x = x
-    # if picture.pt1.y > y:
-    #     picture.pt1.y = y
-    # if picture.maxCoords.x < x:
-    #     picture.maxCoords.x = x
-    # if picture.maxCoords.y < y:
-    #     picture.maxCoords.y = y
-    # cv.rectangle(newImage, (picture.minCoords.x - 25, picture.minCoords.y - 25),
-    #              (picture.maxCoords.x + 25, picture.maxCoords.y + 25), (255, 0, 0), 2)
-    # for i in range(len(contours)):
-    #     x, y, w, h = boundRect[i]
-    #     color = (rng.randint(0, 256), rng.randint(0, 256), rng.randint(0, 256))
-    #     cv.rectangle(newImage, (int(x), int(y)), (int(x + w), int(y + h)), color, 2)
+    cv.circle(newImage, (picture.pt1.x, picture.pt1.y), 5, (0, 0, 255), -1)  # Red
+    cv.circle(newImage, (picture.pt2.x, picture.pt2.y), 5, (255, 0, 0), -1)  # Blue
+    cv.circle(newImage, (picture.pt3.x, picture.pt3.y), 5, (0, 255, 0), -1)  # Green
+    cv.circle(newImage, (picture.pt4.x, picture.pt4.y), 5, (0, 255, 255), -1)  # Yellow
 
     cv.imshow('Contours', newImage)
 
@@ -204,18 +178,3 @@ cv.createTrackbar('Canny thresh:', source_window, thresh, max_thresh, thresh_cal
 thresh_callback(thresh)
 
 cv.waitKey()
-
-
-class Personne:
-    prenom = ""
-    nom = ""
-
-    def direbonjour(self):
-        print("Bonjour, je suis " + self.prenom)
-
-
-Mael_prenom = "Mael"
-Mael_nom = "Kerichard"
-
-mael = Personne("Mael", "Kerichard")
-mael.direbonjour()
