@@ -133,6 +133,7 @@ def color_callback(val):
     result = cv.bitwise_and(src, src, mask=mask)
     cv.imshow(color_window, result)
     image.grayImage = cv.blur(cv.cvtColor(result, cv.COLOR_BGR2GRAY), (3, 3))
+
     thresh_callback(cv.getTrackbarPos('Canny thresh:', source_window))
 
 
